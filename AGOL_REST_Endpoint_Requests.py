@@ -41,7 +41,11 @@ def all_requests(OID_count, OID_list, jpath, workspace, url, fc_name):
     total_count = OID_count
     all_OIDs =  OID_list
 
-    
+    # Check for spaces in feature class name
+    if ' ' in fc_name:
+    # Replace spaces with underscores
+        fc_name = fc_name.replace(' ', '_')
+
     # Number of requests to make to API. 
     # Uses 1000 returns per request
     
@@ -288,7 +292,7 @@ def all_requests(OID_count, OID_list, jpath, workspace, url, fc_name):
         response = requests.get(url, params=params)
         responseURL = f"Full URL:, {response.url}"
 
-        print (f"/n/nTotal remaining OIDs: {str(remainder)}")
+        print (f"\n\nTotal remaining OIDs: {str(remainder)}")
         
         
         # check for 200 response, then proceed to JSON dump
@@ -309,11 +313,14 @@ def all_requests(OID_count, OID_list, jpath, workspace, url, fc_name):
 
            
             f_name = f"{str(c)}_2023_05_25_Requests.json"
+
             jpath = os.path.join(workspace, f_name)
 
+            # Get the current date
+            current_date = datetime.datetime.now()
 
             # Create a formatted string with the current date
-            date_string = current_date.strftime('%Y-%m-%d')
+            date_string = current_date.strftime('%Y_%m_%d')
             f_name = f"{str(c)}_{date_string}_Requests.json"
             jpath = os.path.join(workspace, f_name)
 
@@ -325,25 +332,35 @@ def all_requests(OID_count, OID_list, jpath, workspace, url, fc_name):
                 json.dump(data, f)
 
 
-            # Set the output feature class name
-            output_feature_class = f"json_{str(c)}_request"
+            if number_requests == 0:
+                
+                output_feature_class = fc_name
+            
+            else:
+                output_feature_class = f"json_{str(c)}_request"
+
 
             # Construct the full path of the output feature class within the file geodatabase
             output_feature_class_path = geodatabase_path + "\\" + output_feature_class
 
+            print (jpath)
+            print (output_feature_class_path)
+
             # Convert JSON to feature class
             arcpy.JSONToFeatures_conversion(jpath, output_feature_class_path)
 
-
-            # append feature into first feature class
-            arcpy.Append_management(
-            inputs=output_feature_class_path,
-            target=append_fc,
-            schema_type="TEST"
-            )
-                    
-            # delete feature class
-            arcpy.Delete_management(output_feature_class_path)
+            # if number of features less than 100, no append is needed. So if number of requests is 0, skip append. 
+            if number_requests > 0:
+                
+                # append feature into first feature class
+                arcpy.Append_management(
+                inputs=output_feature_class_path,
+                target=append_fc,
+                schema_type="TEST"
+                )
+                        
+                # delete feature class
+                arcpy.Delete_management(output_feature_class_path)
 
             # delete JSON
             os.remove(jpath)
@@ -357,24 +374,23 @@ def all_requests(OID_count, OID_list, jpath, workspace, url, fc_name):
             log.write(f"-----------------------------------------------------------")
             
 
-                
     log.close()
 
 #------------------------------------------------------------------------------------------
 
 # setup JSON
-local_path = r"C:\Users\warmstrong\Documents\Data\NFPORS\20230814 download"
-f_name = "08102023 NFPORS.json"
+local_path = r"C:\Users\warmstrong\Documents\Data\InFORM\09062023 read only service download"
+f_name = "Estimated_Treatment.json"
 json_path = os.path.join(local_path, f_name)
 
 # Check for JSON and delete if already exists
 if os.path.exists(json_path):
     os.remove(json_path)
 
-URL = "https://usgs.nfpors.gov/arcgis/rest/services/treatmentPoly/MapServer/0"
+URL = "https://inform-dev-arcgis.mbsdevazure.com/server/rest/services/OpenData/InFORM_Fuels_Treatments_and_Activities/FeatureServer/3"
 
 # Output name of feature class
-out_feature = "nfpors_20230814"
+out_feature = "actual activity"
 
 # call 'object_ids' function
 idList, idCount = object_ids(URL)
